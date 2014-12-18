@@ -1,0 +1,101 @@
+
+Backseung  2014-07-30 20:43:31 
+
+   
+
+퀄리티 높은 게시판을 공개해주셔서 감사합니다 :)
+근데 공개된 소스에서 structure.sql을 DB에 적용하는데 오류가 생기네요.
+
+Error Code: 1075. Incorrect table definition; there can be only one auto column and it must be defined as a key
+
+ Primary Key가 두 개 이상 설정되있어서 그러는거 같은데 
+
+ki_write table에 Primary Kehy가 두개가 잡혀있네요.
+
+
+이거 어떠헤 수정해야 되는지 알 수 있을까요 ? 
+
+
+hanize  2014-07-31 04:52:19 
+
+   
+
+Backseung님 저랑 같은 문제로 같은 날짜에 고민하시네요^^
+해당 문제는 innoDB때문인거 같습니다. 다른분들은 잘된다니.. 저두 innoDB가 기본으로 셋팅되어 있거든요.
+아래 다른분들도 innoDB 때문인거 같구요..
+
+http://www.tested.co.kr/board/Talk/view/wr_id/203
+
+저두 mySQL을 많이 사용안해봐서 잘모르지만..오류메세지 나오는것 처럼 PK를 wr_id(AUTO_INCREMENT 되는놈) 칼럼 하나만 잡구요..
+
+별도로 index를 하나 생성 시켜주세요. bo_table, wr_id 순서로요. 칼럼 순서가 중요하구요^^
+별도로 index를 만드는 이유는 PK칼럼의 index를 그냥 일반 index로 대체 하는거죠.. 안그럼 select할때 느려질수 있으니..
+
+ki_write, ki_comment 두개 테이블 만들때 오류날꺼니 두군데 다 고치면 될껍니다.
+
+ki_write 테이블 생성문 아래를 아래처럼 수정
+
+  PRIMARY KEY (`wr_id`) ,
+   INDEX `idx_ki_write_b_t_w_id` (`bo_table` ASC, `wr_id` ASC) , // 인덱스 이름은 아무거나 하시구요..
+   INDEX `list` (`bo_table` ASC, `wr_num` ASC, `wr_reply` ASC, `ca_code` ASC) );
+
+ ki_comment 테이블 생성문 아래를 아래처럼 수정
+
+  PRIMARY KEY (`co_id`) ,
+   INDEX `idx_ki_comment_b_t_w_id_c_id` (`bo_table` ASC, `wr_id` ASC, `co_id` ASC) ,
+   INDEX `list` (`bo_table` ASC, `wr_id` ASC, `co_num` ASC, `co_reply` ASC, `ca_code` ASC) );
+
+이렇게 해주시면 됩니다.  
+ 
+===================================================================================================
+v2.2_utf8에서 게시판에 jpg,png 파일이 업로드가 안되는 경우가 있습니다. 
+이때는 config\mimes.php에서 application/octet-stream 이 추가 되어있는지 확인해 보세요
+ 저는 추가 안해놓고 계속 삽질 했네요..
+그리고 index.php 안에     define('ENVIRONMENT', 'development'); 으로 되어있다면
+config\development\mimes.php를 만들고 해주셔야 합니다.
+
+다음은 웅파님의 글입니다. - http://codeigniter-kr.org/tip/view/1180/page/1/q/mimes
+
+===================================================================================================
+
+오늘 마냐님 게시판 설치해봤습니다.
+root에 설치했을때 설치가 제대로 되었습니다. 물론 약간의 문제가 있지만 해결될것 같고요...
+root에 학습용으로 설치한게 많아서 서브 디렉토리에 설치 할려고 했는데 나름대로 삽질 했습니다.
+별것 아니지만 저와 같은 생각으로 작업하다가 고생하시는 분이 있을걸로 생각하고 내용을 게시합니다.
+
+저와 상황이 다를수 있을을 알려 드립니다.
+개발환경 : win7, apmsetup7, 에디터플러스, KI_Board_v2.1_.zip
+전제조건 : root에 설치하는게 아니라 서브디렉토리 kiboard 에 설치합니다.
+
+1.변경내용
+ .htaccess
+ RewriteEngine on
+ RewriteCond %{REQUEST_URI} !^/kiboard/index\.php
+ RewriteCond %{REQUEST_URI} !^/kiboard/img/
+ RewriteCond %{REQUEST_URI} !^/kiboard/css/
+ RewriteCond %{REQUEST_URI} !^/kiboard/js/
+ RewriteCond %{REQUEST_URI} !^/kiboard/data/
+ RewriteCond %{REQUEST_URI} !^/kiboard/editor/
+ RewriteRule ^(.*)$ /kiboard/index.php/$1 [L]
+
+ 2.변경내용
+kiboard/app/config/constants.php 44줄
+define('RT_PATH', '/kiboard');
+
+ 3.변경내용
+kiboard/app/controllers/adm/config.php 18줄
+file_get_contents($_SERVER['DOCUMENT_ROOT'].'/kiboard/app/config/cf_'.$file.'.php')
+
+ ※참고로 config.php 설정 내용입니다.
+ $config['base_url'] = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == "on") ? "https" : "http");
+ $config['base_url'] .= "://" . $_SERVER['HTTP_HOST'];
+ $config['base_url'] .= str_replace(basename($_SERVER['SCRIPT_NAME']), "", $_SERVER['SCRIPT_NAME']);
+ //$config['base_url'] = "";
+
+ $config['index_page'] = '';
+
+
+메인페이지 http:// localhost/kiboard
+관리페이지 http://localhost/kiboard/adm
+
+이상입니다. 조금이라도 도움됐으면 하는 바램에서 댓글을 게시합니다.
